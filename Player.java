@@ -152,7 +152,7 @@ class Player {
         }
         return GRID_HEGIHT - 1;
     }
-    
+
     private int countBlocks(char[] grid, int row, int column, char color, HashSet<Integer> visited) {
         if (row < 0 ||
             column < 0 ||
