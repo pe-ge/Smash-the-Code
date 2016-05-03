@@ -2,10 +2,19 @@ import java.util.*;
 import java.io.*;
 
 class Color {
-    int colorA, colorB;
-    public Color(int colorA, int colorB) {
+    char colorA, colorB;
+    public Color(char colorA, char colorB) {
         this.colorA = colorA;
         this.colorB = colorB;
+    }
+}
+
+class ActionValuePair {
+    int action;
+    double value;
+
+    ActionValuePair(double value) {
+        this.value = value;
     }
 }
 
@@ -16,21 +25,12 @@ class Player {
     final int GRID_SIZE = GRID_WIDTH * GRID_HEGIHT;
 
     ArrayList<Color> nextBlocks = new ArrayList<Color>();
+    char[] myGrid = new char[GRID_SIZE];
+    char[] opponentsGrid = new char[GRID_SIZE];
 
-    public Player() {
-        // Scanner in = new Scanner(System.in);
-        Scanner in = null;
-        try {
-            in = new Scanner(new File("map.txt"));
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
-
-        char[] myGrid = new char[GRID_SIZE];
-        char[] opponentsGrid = new char[GRID_SIZE];
-
+    public Player(Scanner in) {
         for (int i = 0; i < 8; i++) {
-            nextBlocks.add(new Color(in.nextInt(), in.nextInt()));
+            nextBlocks.add(new Color((char)(in.nextInt() + '0'), (char)(in.nextInt() + '0')));
         }
 
         for (int i = 0; i < 12; i++) {
@@ -46,33 +46,6 @@ class Player {
                 opponentsGrid[i * GRID_WIDTH + j] = row.charAt(j);
             }
         }
-        /*
-        myGrid = nextState(myGrid, 0, '7');
-        myGrid = nextState(myGrid, 1, '2');
-        myGrid = nextState(myGrid, 2, '9');
-
-        myGrid = nextState(myGrid, 0, '1');
-        myGrid = nextState(myGrid, 0, '5');
-        myGrid = nextState(myGrid, 0, '3');
-        myGrid = nextState(myGrid, 1, '4');
-        myGrid = nextState(myGrid, 1, '1');
-        myGrid = nextState(myGrid, 1, '2');
-        myGrid = nextState(myGrid, 1, '3');
-        myGrid = nextState(myGrid, 2, '5');
-        myGrid = nextState(myGrid, 2, '4');
-        myGrid = nextState(myGrid, 2, '5');
-        myGrid = nextState(myGrid, 3, '5');
-        printGrid(myGrid);
-        myGrid = nextState(myGrid, 1, '5');
-        myGrid = nextState(myGrid, 3, '5');
-        printGrid(myGrid);
-        */
-        myGrid = nextState(myGrid, 0, '5');
-        myGrid = nextState(myGrid, 0, '2');
-        myGrid = nextState(myGrid, 0, '5');
-        myGrid = nextState(myGrid, 1, '3');
-        myGrid = nextState(myGrid, 1, '2');
-        printGrid(myGrid);
     }
 
     private char[] nextState(char[] grid, int column, char color) {
@@ -210,8 +183,68 @@ class Player {
         }
     }
 
-    public static void main(String args[]) {
-        Player P = new Player();
+    private ActionValuePair DFS(char[] grid, int depth, int maxDepth) {
+        if (depth == maxDepth) {
+            int totalDots = 0;
+            for (int i = 0; i < grid.length; i++) {
+               if (grid[i] == '.') {
+                   totalDots++;
+               }
+            }
 
+            return new ActionValuePair(totalDots);
+        }
+
+        ActionValuePair bestActionValuePair = new ActionValuePair(Double.MIN_VALUE);
+        for (int i = 0; i < 6; i++) {
+            char color = nextBlocks.get(depth).colorA;
+            char[] newGrid = nextState(grid, i, color);
+            ActionValuePair child = DFS(newGrid, depth + 1, maxDepth);
+            child.action = i;
+            if (child.value > bestActionValuePair.value) {
+                bestActionValuePair = child;
+            }
+        }
+        return bestActionValuePair;
+    }
+
+    public void mainLoop(Scanner in) {
+        while (true) {
+            ActionValuePair best = DFS(myGrid, 0, 3);
+            myGrid = nextState(myGrid, best.action, nextBlocks.get(0).colorA);
+            System.out.println(best.action);
+
+            nextBlocks.clear();
+            for (int i = 0; i < 8; i++) {
+                nextBlocks.add(new Color((char)(in.nextInt() + '0'), (char)(in.nextInt() + '0')));
+            }
+
+            for (int i = 0; i < 12; i++) {
+                String row = in.next();
+                for (int j = 0; j < row.length(); j++) {
+                    myGrid[i * GRID_WIDTH + j] = row.charAt(j);
+                }
+            }
+
+            for (int i = 0; i < 12; i++) {
+                String row = in.next();
+                for (int j = 0; j < row.length(); j++) {
+                    opponentsGrid[i * GRID_WIDTH + j] = row.charAt(j);
+                }
+            }
+        }
+    }
+
+    public static void main(String args[]) {
+        // Scanner in = new Scanner(System.in);
+        Scanner in = null;
+        try {
+            in = new Scanner(new File("map1"));
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+
+        Player P = new Player(in);
+        P.mainLoop(in);
     }
 }
