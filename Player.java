@@ -3,10 +3,6 @@ import java.io.*;
 
 class Color {
     char colorA, colorB;
-    public Color(char colorA, char colorB) {
-        this.colorA = colorA;
-        this.colorB = colorB;
-    }
 }
 
 class ActionValuePair {
@@ -20,17 +16,47 @@ class ActionValuePair {
 
 class Player {
 
-    final int GRID_WIDTH = 6;
-    final int GRID_HEGIHT = 12;
-    final int GRID_SIZE = GRID_WIDTH * GRID_HEGIHT;
+    private final int GRID_WIDTH = 6;
+    private final int GRID_HEGIHT = 12;
+    private final int GRID_SIZE = GRID_WIDTH * GRID_HEGIHT;
 
-    ArrayList<Color> nextBlocks = new ArrayList<Color>();
-    char[] myGrid = new char[GRID_SIZE];
-    char[] opponentsGrid = new char[GRID_SIZE];
+    private Color[] nextBlocks = new Color[8];
+    private char[] myGrid = new char[GRID_SIZE];
+    private char[] opponentsGrid = new char[GRID_SIZE];
 
     public Player(Scanner in) {
         for (int i = 0; i < 8; i++) {
-            nextBlocks.add(new Color((char)(in.nextInt() + '0'), (char)(in.nextInt() + '0')));
+            nextBlocks[i] = new Color();
+        }
+        readInput(in);
+        myGrid[(GRID_HEGIHT - 1)* GRID_WIDTH] = 'a';
+        myGrid = nextState(myGrid, 0, '1');
+        printGrid(myGrid);
+        System.out.println();
+        myGrid = nextState(myGrid, 0, '2');
+        printGrid(myGrid);
+        System.out.println();
+        myGrid = nextState(myGrid, 0, '3');
+        printGrid(myGrid);
+        System.out.println();
+        myGrid = nextState(myGrid, 0, '4');
+        printGrid(myGrid);
+        System.out.println();
+        myGrid = nextState(myGrid, 0, '5');
+        printGrid(myGrid);
+        System.out.println();
+        myGrid = nextState(myGrid, 0, '6');
+        printGrid(myGrid);
+        System.out.println();
+        myGrid = nextState(myGrid, 0, '7');
+        printGrid(myGrid);
+        System.out.println();
+    }
+
+    public void readInput(Scanner in) {
+        for (int i = 0; i < 8; i++) {
+            nextBlocks[i].colorA = in.next().charAt(0);
+            nextBlocks[i].colorB = in.next().charAt(0);
         }
 
         for (int i = 0; i < 12; i++) {
@@ -50,6 +76,10 @@ class Player {
 
     private char[] nextState(char[] grid, int column, char color) {
         int row = findFreeRow(grid, column);
+        if (row < 1) {
+            return null;
+        }
+
         grid = placeBlock(grid, row, column, color);
 
         TreeSet<Integer> columnsToCheck = new TreeSet<Integer>();
@@ -89,6 +119,8 @@ class Player {
 
                     // check whether another deletion is possible within column
                     columnsToCheck.addAll(affectedColumns);
+                } else {
+                    break;
                 }
                 row++;
             }
@@ -118,7 +150,7 @@ class Player {
     }
 
     private int findFreeRow(char[] grid, int column) {
-        for (int i = 1; i < GRID_HEGIHT; i++) {
+        for (int i = 0; i < GRID_HEGIHT; i++) {
             if (grid[i * GRID_WIDTH + column] != '.') {
                 return i - 1; // free row is above first occupied
             }
@@ -197,8 +229,11 @@ class Player {
 
         ActionValuePair bestActionValuePair = new ActionValuePair(Double.MIN_VALUE);
         for (int i = 0; i < 6; i++) {
-            char color = nextBlocks.get(depth).colorA;
+            char color = nextBlocks[depth].colorA;
             char[] newGrid = nextState(grid, i, color);
+            if (newGrid == null) {
+                continue;
+            }
             ActionValuePair child = DFS(newGrid, depth + 1, maxDepth);
             child.action = i;
             if (child.value > bestActionValuePair.value) {
@@ -211,27 +246,11 @@ class Player {
     public void mainLoop(Scanner in) {
         while (true) {
             ActionValuePair best = DFS(myGrid, 0, 3);
-            myGrid = nextState(myGrid, best.action, nextBlocks.get(0).colorA);
+            myGrid = nextState(myGrid, best.action, nextBlocks[0].colorA);
+
             System.out.println(best.action);
 
-            nextBlocks.clear();
-            for (int i = 0; i < 8; i++) {
-                nextBlocks.add(new Color((char)(in.nextInt() + '0'), (char)(in.nextInt() + '0')));
-            }
-
-            for (int i = 0; i < 12; i++) {
-                String row = in.next();
-                for (int j = 0; j < row.length(); j++) {
-                    myGrid[i * GRID_WIDTH + j] = row.charAt(j);
-                }
-            }
-
-            for (int i = 0; i < 12; i++) {
-                String row = in.next();
-                for (int j = 0; j < row.length(); j++) {
-                    opponentsGrid[i * GRID_WIDTH + j] = row.charAt(j);
-                }
-            }
+            readInput(in);
         }
     }
 
@@ -245,6 +264,6 @@ class Player {
         }
 
         Player P = new Player(in);
-        P.mainLoop(in);
+        //P.mainLoop(in);
     }
 }
