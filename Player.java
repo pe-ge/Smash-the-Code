@@ -173,7 +173,7 @@ class Player {
             }
 
             // count size of blocks
-            HashSet<Integer> group = new HashSet<Integer>();
+            TreeSet<Integer> group = new TreeSet<Integer>();
             int size = countBlocks(state.myGrid, beingChecked, color, group);
 
             if (size >= 4) {
@@ -185,10 +185,11 @@ class Player {
 
                 // obtain positions that needs to be checked (column -> row)
                 printGrid(state);
-                HashMap<Integer, Integer> suspiciousPositions = findSuspicious(group);
+
+                group = removeNeighboursInColumn(group);
 
                 // apply gravity
-                HashSet<Integer> movedPositions = gravity(state.myGrid, suspiciousPositions);
+                HashSet<Integer> movedPositions = gravity(state.myGrid, group);
 
                 // check whether another deletion is possible within column
                 toCheck.addAll(movedPositions);
@@ -198,22 +199,15 @@ class Player {
         return state;
     }
 
-    private HashMap<Integer, Integer> findSuspicious(HashSet<Integer> block) {
-        // column -> row
-        HashMap<Integer, Integer> suspicious = new HashMap<Integer, Integer>();
-        for (Integer position : block) {
-            int row = getRow(position);
-            int column = getColumn(position);
-            if (suspicious.containsKey(column)) {
-                if (suspicious.get(column) < row) {
-                    suspicious.put(column, row);
-                }
-
-            } else {
-                suspicious.put(column, row);
+    private TreeSet<Integer> removeNeighboursInColumn(TreeSet<Integer> positions) {
+        TreeSet<Integer> result = new TreeSet<Integer>(positions);
+        for (Integer position : positions) {
+            if (positions.contains(position - GRID_WIDTH)) {
+                result.remove(position - GRID_WIDTH);
             }
         }
-        return suspicious;
+
+        return result;
     }
 
     private boolean insideGrid(int row, int column) {
@@ -229,7 +223,7 @@ class Player {
         return GRID_HEIGHT - 1;
     }
 
-    private int countBlocks(char[] grid, int position, char color, HashSet<Integer> visited) {
+    private int countBlocks(char[] grid, int position, char color, TreeSet<Integer> visited) {
         int row = getRow(position);
         int column = getColumn(position);
         if (!insideGrid(row, column) ||
@@ -246,11 +240,11 @@ class Player {
         return 1 + left + right + top + bottom;
     }
 
-    private HashSet<Integer> gravity(char[] grid, HashMap<Integer, Integer> positions) {
+    private HashSet<Integer> gravity(char[] grid, TreeSet<Integer> positions) {
         HashSet<Integer> moved = new HashSet<Integer>();
-        for (Map.Entry<Integer, Integer> position : positions.entrySet()) {
-            int row = position.getValue();
-            int column = position.getKey();
+        for (Integer position : positions) {
+            int row = getRow(position);
+            int column = getColumn(position);
 
             boolean found = false;
             for (int i = row - 1; i >= 0; i--) {
