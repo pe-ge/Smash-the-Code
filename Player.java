@@ -170,14 +170,9 @@ class Player {
         while (!toCheck.isEmpty()) {
             // get position of block to check
             int beingChecked = toCheck.pollFirst();
-            int row = getRow(beingChecked);
-            column = getColumn(beingChecked);
-            if (!insideGrid(row, column)) {
-                throw new RuntimeException("SHOULD NOT HAPPEN");
-            }
 
             char color = state.myGrid[beingChecked];
-            if (color == '.') {
+            if (color == '.' || color == '0') {
                 continue;
             }
 
@@ -281,17 +276,18 @@ class Player {
         for (int i = 0; i < state.heights.length; i++) {
             System.out.print(state.heights[i]);
         }
+        System.out.println(state.total);
         System.out.println();
     }
 
     private ActionValuePair DFS(State state, int depth, int maxDepth) {
         if (depth == maxDepth) {
-            int maxHeight = 0;
-            for (int i = 0; i < state.heights.length; i++) {
-                maxHeight = Math.max(maxHeight, state.heights[i]);
-            }
+            //int maxHeight = 0;
+            //for (int i = 0; i < state.heights.length; i++) {
+            //    maxHeight = Math.max(maxHeight, state.heights[i]);
+            //}
 
-            return new ActionValuePair(2 * maxHeight + state.total);
+            return new ActionValuePair(/*2 * maxHeight +*/ state.total);
         }
 
         ActionValuePair bestActionValuePair = new ActionValuePair(Double.MAX_VALUE);
@@ -304,6 +300,7 @@ class Player {
                 if (nextState == null) {
                     continue;
                 }
+                printGrid(nextState);
                 ActionValuePair child = DFS(nextState, depth + 1, maxDepth);
                 child.column = column;
                 child.rotation = rotation;
@@ -318,9 +315,31 @@ class Player {
     public void mainLoop(Scanner in) {
         while (true) {
             State state = readInput(in);
-            ActionValuePair bestAction = DFS(state, 0, 1);
+            ActionValuePair bestAction = DFS(state, 0, 3);
             System.out.println(bestAction.column + " " + bestAction.rotation);
         }
+    }
+
+    public void testing() {
+        Scanner in = new Scanner(System.in);
+        State s = new State();
+        for (int i = 0; i < s.myGrid.length; i++) {
+            s.myGrid[i] = '.';
+        }
+
+        while (true) {
+            Color nextBlock = new Color();
+            nextBlock.colorA = in.next().charAt(0);
+            nextBlock.colorB = in.next().charAt(0);
+            int column = in.nextInt();
+            int rotation = in.nextInt();
+
+            s = nextState(s, column, rotation, nextBlock);
+
+            printGrid(s);
+
+        }
+
     }
 
     public static void main(String args[]) {
@@ -337,6 +356,10 @@ class Player {
 
         Player P = new Player();
 
-        P.mainLoop(in);
+        if (P.TESTING) {
+            P.testing();
+        } else {
+            P.mainLoop(in);
+        }
     }
 }
