@@ -19,6 +19,8 @@ class State {
 
     public char[] myGrid = new char[Player.GRID_SIZE];
     public int[] heights = new int[Player.GRID_WIDTH];
+    public int total;
+
     public char[] opponentsGrid = new char[Player.GRID_SIZE];
 
     static {
@@ -78,8 +80,12 @@ class Player {
             for (int j = 0; j < row.length(); j++) {
                 char ch = row.charAt(j);
                 state.myGrid[i * GRID_WIDTH + j] = ch;
-                if (ch != '.' && state.heights[j] == 0) {
-                    state.heights[j] = GRID_HEIGHT - i;
+
+                if (ch != '.') {
+                    state.total++;
+                    if(state.heights[j] == 0) {
+                        state.heights[j] = GRID_HEIGHT - i;
+                    }
                 }
             }
             //System.err.println(row);
@@ -156,6 +162,8 @@ class Player {
         state.heights[getColumn(block.positionA)]++;
         state.heights[getColumn(block.positionB)]++;
 
+        state.total = oldState.total + 2;
+
         TreeSet<Integer> toCheck = new TreeSet<Integer>(); // values are positions
         toCheck.add(block.positionA);
         toCheck.add(block.positionB);
@@ -182,6 +190,7 @@ class Player {
                 for (Integer position : group) {
                     state.myGrid[position] = '.';
                     state.heights[getColumn(position)]--;
+                    state.total--;
                 }
 
                 group = removeNeighboursInColumn(group);
@@ -278,13 +287,11 @@ class Player {
     private ActionValuePair DFS(State state, int depth, int maxDepth) {
         if (depth == maxDepth) {
             int maxHeight = 0;
-            int totalBlocks = 0;
             for (int i = 0; i < state.heights.length; i++) {
                 maxHeight = Math.max(maxHeight, state.heights[i]);
-                totalBlocks += state.heights[i];
             }
 
-            return new ActionValuePair(2 * maxHeight + totalBlocks);
+            return new ActionValuePair(2 * maxHeight + state.total);
         }
 
         ActionValuePair bestActionValuePair = new ActionValuePair(Double.MAX_VALUE);
