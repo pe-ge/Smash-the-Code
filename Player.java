@@ -46,17 +46,15 @@ class Player {
     public static final int GRID_HEIGHT = 12;
     public static final int GRID_SIZE = GRID_WIDTH * GRID_HEIGHT;
 
-    // maps column to possible rotations
+    // maps column number to possible rotations
     public static final HashMap<Integer, ArrayList<Integer>> allActions = new HashMap<Integer, ArrayList<Integer>>();
-
-    private State state;
 
     static {
         for (int column = 0; column < 6; column++) {
             ArrayList<Integer> rotations = new ArrayList<Integer>();
             allActions.put(column, rotations);
             for (int rotation = 0; rotation < 4; rotation++) {
-                if ((column == 0 && rotation == 2) || (column == 4 && rotation == 0)) {
+                if ((column == 0 && rotation == 2) || (column == 5 && rotation == 0)) {
                     continue;
                 }
                 rotations.add(rotation);
@@ -64,25 +62,17 @@ class Player {
         }
     }
 
-    public Player(Scanner in) {
-        state = new State();
+    public State readInput(Scanner in) {
+        State state = new State();
 
-        readInput(in);
-
-//        if (TESTING) {
-//            state.myGrid[(GRID_HEIGHT - 1) * GRID_WIDTH + 1] = '0';
-//            state = nextState(state, 0, 0, State.nextBlocks[0]);
-//            printGrid(state);
-//        }
-    }
-
-    public void readInput(Scanner in) {
+        // reading next blocks
         for (int i = 0; i < 8; i++) {
             State.nextBlocks[i].colorA = in.next().charAt(0);
             State.nextBlocks[i].colorB = in.next().charAt(0);
             System.err.println(State.nextBlocks[i].colorA + " " + State.nextBlocks[i].colorB);
         }
 
+        // reading my grid
         for (int i = 0; i < 12; i++) {
             String row = in.next();
             for (int j = 0; j < row.length(); j++) {
@@ -91,6 +81,7 @@ class Player {
             System.err.println(row);
         }
 
+        // reading opponents grid
         for (int i = 0; i < 12; i++) {
             String row = in.next();
             for (int j = 0; j < row.length(); j++) {
@@ -99,11 +90,14 @@ class Player {
 
             System.err.println(row);
         }
+
+        return state;
     }
     private Block getBlock(State state, int column, int rotation) {
         int row1, column1;
         int row2, column2;
         column1 = column;
+
         switch (rotation) {
             case 0:
                 row1 = findFreeRow(state.myGrid, column1);
@@ -129,6 +123,8 @@ class Player {
                 return null;
         }
 
+        if (row1 < 0 || row2 < 0) return null;
+
         return new Block(row1, column1, row2, column2);
     }
 
@@ -141,19 +137,16 @@ class Player {
     }
 
     private State nextState(State oldState, int column, int rotation, Color blockColor) {
-        Block block = null;
-        try {
-        block = getBlock(oldState, column, rotation);
+        Block block = getBlock(oldState, column, rotation);
+        if (block == null) {
+            return null;
+        }
 
         State state = new State();
         // place block
-            state.myGrid = Arrays.copyOf(oldState.myGrid, oldState.myGrid.length);
-            state.myGrid[block.positionA] = blockColor.colorA;
-            state.myGrid[block.positionB] = blockColor.colorB;
-        } catch (Exception e) {
-            printGrid(oldState);
-            getBlock(oldState, column, rotation);
-        }
+        state.myGrid = Arrays.copyOf(oldState.myGrid, oldState.myGrid.length);
+        state.myGrid[block.positionA] = blockColor.colorA;
+        state.myGrid[block.positionB] = blockColor.colorB;
 
         state.heights = Arrays.copyOf(oldState.heights, oldState.heights.length);
         state.heights[getColumn(block.positionA)]++;
@@ -300,6 +293,7 @@ class Player {
                 if (nextState == null) {
                     continue;
                 }
+                //printGrid(nextState);
                 ActionValuePair child = DFS(nextState, depth + 1, maxDepth);
                 child.column = column;
                 child.rotation = rotation;
@@ -313,12 +307,9 @@ class Player {
 
     public void mainLoop(Scanner in) {
         while (true) {
-            ActionValuePair best = DFS(state, 0, 3);
-            state = nextState(state, best.column, best.rotation, State.nextBlocks[0]);
-
-            System.out.println(best.column + " " + best.rotation);
-
-            readInput(in);
+            State state = readInput(in);
+            ActionValuePair bestAction = DFS(state, 0, 3);
+            System.out.println(bestAction.column + " " + bestAction.rotation);
         }
     }
 
@@ -334,7 +325,8 @@ class Player {
             in = new Scanner(System.in);
         }
 
-        Player P = new Player(in);
+        Player P = new Player();
+
         P.mainLoop(in);
     }
 }
