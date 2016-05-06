@@ -15,13 +15,16 @@ class ActionValuePair {
 }
 
 class State {
+    public static final int GRID_WIDTH = 6;
+    public static final int GRID_HEIGHT = 12;
+
     public static Color[] nextBlocks = new Color[8];
 
-    public char[] myGrid = new char[Player.GRID_SIZE];
-    public int[] heights = new int[Player.GRID_WIDTH];
+    public char[][] myGrid = new char[GRID_HEIGHT][GRID_WIDTH];
+    public int[] heights = new int[GRID_WIDTH];
     public int total;
 
-    public char[] opponentsGrid = new char[Player.GRID_SIZE];
+    public char[][] opponentsGrid = new char[GRID_HEIGHT][GRID_WIDTH];
 
     static {
         for (int i = 0; i < 8; i++) {
@@ -30,13 +33,54 @@ class State {
     }
 }
 
-class Block {
-    int positionA;
-    int positionB;
+class Position {
 
-    public Block(int row1, int column1, int row2, int column2) {
-        this.positionA = row1 * Player.GRID_WIDTH + column1;
-        this.positionB = row2 * Player.GRID_WIDTH + column2;
+    public static final Position[][] positions;
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        Position position = (Position) o;
+
+        if (row != position.row) return false;
+        return column == position.column;
+
+    }
+
+    @Override
+    public int hashCode() {
+        int result = row;
+        result = 31 * result + column;
+        return result;
+    }
+
+    static {
+        positions = new Position[State.GRID_HEIGHT][State.GRID_WIDTH];
+        for (int row = 0; row < positions.length; row++) {
+            for (int column = 0; column < positions[row].length; column++) {
+                positions[row][column] = new Position(row, column);
+            }
+        }
+    }
+
+    public int row, column;
+
+    public Position(int row, int column) {
+        this.row = row;
+        this.column = column;
+    }
+
+}
+
+class BlockPair {
+    Position first;
+    Position second;
+
+    public BlockPair(int row1, int column1, int row2, int column2) {
+        this.first = new Position(row1, column1);
+        this.second = new Position(row2, column2);
     }
 }
 
@@ -44,9 +88,6 @@ class Player {
 
     public static final boolean TESTING = true;
 
-    public static final int GRID_WIDTH = 6;
-    public static final int GRID_HEIGHT = 12;
-    public static final int GRID_SIZE = GRID_WIDTH * GRID_HEIGHT;
 
     // maps column number to possible rotations
     public static final HashMap<Integer, ArrayList<Integer>> allActions = new HashMap<Integer, ArrayList<Integer>>();
@@ -67,7 +108,7 @@ class Player {
     public State readInput(Scanner in) {
         State state = new State();
 
-        // reading next blocks
+        // reading next 8 blocks
         for (int i = 0; i < 8; i++) {
             State.nextBlocks[i].colorA = in.next().charAt(0);
             State.nextBlocks[i].colorB = in.next().charAt(0);
@@ -75,16 +116,16 @@ class Player {
         }
 
         // reading my grid
-        for (int i = 0; i < GRID_HEIGHT; i++) {
+        for (int r = 0; r < State.GRID_HEIGHT; r++) {
             String row = in.next();
-            for (int j = 0; j < row.length(); j++) {
-                char ch = row.charAt(j);
-                state.myGrid[i * GRID_WIDTH + j] = ch;
+            for (int c = 0; c < row.length(); c++) {
+                char color = row.charAt(c);
+                state.myGrid[r][c] = color;
 
-                if (ch != '.') {
+                if (color != '.') {
                     state.total++;
-                    if(state.heights[j] == 0) {
-                        state.heights[j] = GRID_HEIGHT - i;
+                    if(state.heights[c] == 0) {
+                        state.heights[c] = State.GRID_HEIGHT - r;
                     }
                 }
             }
@@ -92,10 +133,10 @@ class Player {
         }
 
         // reading opponents grid
-        for (int i = 0; i < GRID_HEIGHT; i++) {
+        for (int r = 0; r < State.GRID_HEIGHT; r++) {
             String row = in.next();
-            for (int j = 0; j < row.length(); j++) {
-                state.opponentsGrid[i * GRID_WIDTH + j] = row.charAt(j);
+            for (int c = 0; c < row.length(); c++) {
+                state.opponentsGrid[r][c] = row.charAt(c);
             }
 
             //System.err.println(row);
@@ -103,7 +144,7 @@ class Player {
 
         return state;
     }
-    private Block getBlock(State state, int column, int rotation) {
+    private BlockPair getBlockPair(State state, int column, int rotation) {
         int row1, column1;
         int row2, column2;
         column1 = column;
@@ -135,63 +176,66 @@ class Player {
 
         if (row1 < 0 || row2 < 0) return null;
 
-        return new Block(row1, column1, row2, column2);
+        return new BlockPair(row1, column1, row2, column2);
     }
 
-    public int getRow(int position) {
-        return position / GRID_WIDTH;
-    }
-
-    public int getColumn(int position) {
-        return position % GRID_WIDTH;
+    private char[][] deepCopy(char[][] array) {
+        char[][] deepCopy = new char[array.length][array[0].length];
+        for (int i = 0; i < array.length; i++) {
+            for (int j = 0; j < array[i].length; j++) {
+                deepCopy[i][j] = array[i][j];
+            }
+        }
+        return deepCopy;
     }
 
     private State nextState(State oldState, int column, int rotation, Color blockColor) {
-        Block block = getBlock(oldState, column, rotation);
+        BlockPair block = getBlockPair(oldState, column, rotation);
         if (block == null) {
             return null;
         }
 
         State state = new State();
         // place block
-        state.myGrid = Arrays.copyOf(oldState.myGrid, oldState.myGrid.length);
-        state.myGrid[block.positionA] = blockColor.colorA;
-        state.myGrid[block.positionB] = blockColor.colorB;
+        state.myGrid = deepCopy(oldState.myGrid);
+        state.myGrid[block.first.row][block.first.column] = blockColor.colorA;
+        state.myGrid[block.second.row][block.second.column] = blockColor.colorB;
 
         state.heights = Arrays.copyOf(oldState.heights, oldState.heights.length);
-        state.heights[getColumn(block.positionA)]++;
-        state.heights[getColumn(block.positionB)]++;
+        state.heights[block.first.column]++;
+        state.heights[block.second.column]++;
 
         state.total = oldState.total + 2;
 
-        TreeSet<Integer> toCheck = new TreeSet<Integer>(); // values are positions
-        toCheck.add(block.positionA);
-        toCheck.add(block.positionB);
+        HashSet<Position> toCheck = new HashSet<>(); // values are positions
+        toCheck.add(block.first);
+        toCheck.add(block.second);
         while (!toCheck.isEmpty()) {
             // get position of block to check
-            int beingChecked = toCheck.pollFirst();
+            Position beingChecked = toCheck.iterator().next();
+            toCheck.remove(beingChecked);
 
-            char color = state.myGrid[beingChecked];
+            char color = state.myGrid[beingChecked.row][beingChecked.column];
             if (color == '.' || color == '0') {
                 continue;
             }
 
             // count size of blocks
-            TreeSet<Integer> group = new TreeSet<Integer>();
-            int size = countBlocks(state.myGrid, beingChecked, color, group);
+            HashSet<Position> group = new HashSet<>();
+            int size = countBlocks(state.myGrid, beingChecked.row, beingChecked.column, color, group);
 
             if (size >= 4) {
                 // delete blocks
-                for (Integer position : group) {
-                    state.myGrid[position] = '.';
-                    state.heights[getColumn(position)]--;
+                for (Position position : group) {
+                    state.myGrid[position.row][position.column] = '.';
+                    state.heights[position.column]--;
                     state.total--;
                 }
 
-                group = removeNeighboursInColumn(group);
+                HashMap<Integer, Integer> maxOneBlockInColumn = removeNeighboursInColumn(group);
 
                 // apply gravity
-                HashSet<Integer> movedPositions = gravity(state.myGrid, group);
+                HashSet<Position> movedPositions = gravity(state.myGrid, maxOneBlockInColumn);
 
                 // check whether another deletion is possible within column
                 toCheck.addAll(movedPositions);
@@ -201,11 +245,16 @@ class Player {
         return state;
     }
 
-    private TreeSet<Integer> removeNeighboursInColumn(TreeSet<Integer> positions) {
-        TreeSet<Integer> result = new TreeSet<Integer>(positions);
-        for (Integer position : positions) {
-            if (positions.contains(position - GRID_WIDTH)) {
-                result.remove(position - GRID_WIDTH);
+    private HashMap<Integer, Integer> removeNeighboursInColumn(HashSet<Position> positions) {
+        HashMap<Integer, Integer> result = new HashMap<>(); // column -> row
+        for (Position position : positions) {
+            if (result.containsKey(position.column)) {
+                if (result.get(position.column) < position.row) {
+                    result.put(position.column, position.row);
+                }
+
+            } else {
+                result.put(position.column, position.row);
             }
         }
 
@@ -213,48 +262,46 @@ class Player {
     }
 
     private boolean insideGrid(int row, int column) {
-        return row >= 0 && column >= 0 && row < GRID_HEIGHT && column < GRID_WIDTH;
+        return row >= 0 && column >= 0 && row < State.GRID_HEIGHT && column < State.GRID_WIDTH;
     }
 
-    private int findFreeRow(char[] grid, int column) {
-        for (int i = 0; i < GRID_HEIGHT; i++) {
-            if (grid[i * GRID_WIDTH + column] != '.') {
-                return i - 1; // free row is above first occupied
+    private int findFreeRow(char[][] grid, int column) {
+        for (int row = 0; row < State.GRID_HEIGHT; row++) {
+            if (grid[row][column] != '.') {
+                return row - 1; // free row is above first occupied
             }
         }
-        return GRID_HEIGHT - 1;
+        return State.GRID_HEIGHT - 1;
     }
 
-    private int countBlocks(char[] grid, int position, char color, TreeSet<Integer> visited) {
-        int row = getRow(position);
-        int column = getColumn(position);
+    private int countBlocks(char[][] grid, int row, int column, char color, HashSet<Position> visited) {
         if (!insideGrid(row, column) ||
-            grid[row * GRID_WIDTH + column] != color ||
-            visited.contains(row * GRID_WIDTH + column)) {
+            grid[row][column] != color ||
+            visited.contains(Position.positions[row][column])) {
                 return 0;
         }
 
-        visited.add(row * GRID_WIDTH + column);
-        int left = countBlocks(grid, row * GRID_WIDTH + column - 1, color, visited);
-        int right = countBlocks(grid, row * GRID_WIDTH + column  + 1, color, visited);
-        int top = countBlocks(grid, (row - 1) * GRID_WIDTH + column, color, visited);
-        int bottom = countBlocks(grid, (row + 1) * GRID_WIDTH + column, color, visited);
+        visited.add(Position.positions[row][column]);
+        int left = countBlocks(grid, row, column - 1, color, visited);
+        int right = countBlocks(grid, row, column + 1, color, visited);
+        int top = countBlocks(grid, row - 1, column, color, visited);
+        int bottom = countBlocks(grid, row + 1, column, color, visited);
         return 1 + left + right + top + bottom;
     }
 
-    private HashSet<Integer> gravity(char[] grid, TreeSet<Integer> positions) {
-        HashSet<Integer> moved = new HashSet<Integer>();
-        for (Integer position : positions) {
-            int row = getRow(position);
-            int column = getColumn(position);
+    private HashSet<Position> gravity(char[][] grid, HashMap<Integer, Integer> positions) {
+        HashSet<Position> moved = new HashSet<Position>();
+        for (Map.Entry<Integer, Integer> position : positions.entrySet()) {
+            int row = position.getValue();
+            int column = position.getKey();
 
             boolean found = false;
-            for (int i = row - 1; i >= 0; i--) {
-                if (grid[i * GRID_WIDTH + column] != '.') {
+            for (int r = row - 1; r >= 0; r--) {
+                if (grid[r][column] != '.') {
                     found = true;
-                    grid[row * GRID_WIDTH + column] = grid[i * GRID_WIDTH + column];
-                    grid[i * GRID_WIDTH + column] = '.';
-                    moved.add(row * GRID_WIDTH + column);
+                    grid[row][column] = grid[r][column];
+                    grid[r][column] = '.';
+                    moved.add(Position.positions[row][column]);
                     row--;
                 } else if (found) {
                     break;
@@ -267,11 +314,11 @@ class Player {
     }
 
     private void printGrid(State state) {
-        for (int i = 0; i < state.myGrid.length; i++) {
-            System.out.print(state.myGrid[i]);
-            if ((i + 1) % GRID_WIDTH == 0) {
-                System.out.println();
+        for (int row = 0; row < state.myGrid.length; row++) {
+            for (int column = 0; column < state.myGrid[row].length; column++) {
+                System.out.print(state.myGrid[row][column]);
             }
+            System.out.println();
         }
         for (int i = 0; i < state.heights.length; i++) {
             System.out.print(state.heights[i]);
@@ -282,12 +329,13 @@ class Player {
 
     private ActionValuePair DFS(State state, int depth, int maxDepth) {
         if (depth == maxDepth) {
-            //int maxHeight = 0;
-            //for (int i = 0; i < state.heights.length; i++) {
-            //    maxHeight = Math.max(maxHeight, state.heights[i]);
-            //}
+            int maxHeight = 0;
+            for (int i = 0; i < state.heights.length; i++) {
+                maxHeight = Math.max(maxHeight, state.heights[i]);
+            }
 
-            return new ActionValuePair(/*2 * maxHeight +*/ state.total);
+            printGrid(state);
+            return new ActionValuePair(2 * maxHeight + state.total);
         }
 
         ActionValuePair bestActionValuePair = new ActionValuePair(Double.MAX_VALUE);
@@ -300,7 +348,6 @@ class Player {
                 if (nextState == null) {
                     continue;
                 }
-                printGrid(nextState);
                 ActionValuePair child = DFS(nextState, depth + 1, maxDepth);
                 child.column = column;
                 child.rotation = rotation;
@@ -315,7 +362,7 @@ class Player {
     public void mainLoop(Scanner in) {
         while (true) {
             State state = readInput(in);
-            ActionValuePair bestAction = DFS(state, 0, 3);
+            ActionValuePair bestAction = DFS(state, 0, 1);
             System.out.println(bestAction.column + " " + bestAction.rotation);
         }
     }
@@ -323,8 +370,10 @@ class Player {
     public void testing() {
         Scanner in = new Scanner(System.in);
         State s = new State();
-        for (int i = 0; i < s.myGrid.length; i++) {
-            s.myGrid[i] = '.';
+        for (int row = 0; row < s.myGrid.length; row++) {
+            for (int column = 0; column < s.myGrid[row].length; column++) {
+                s.myGrid[row][column] = '.';
+            }
         }
 
         while (true) {
@@ -355,6 +404,7 @@ class Player {
         }
 
         Player P = new Player();
+        P.mainLoop(in);
 
         if (P.TESTING) {
             P.testing();
