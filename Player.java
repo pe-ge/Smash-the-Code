@@ -69,26 +69,30 @@ class Player {
         for (int i = 0; i < 8; i++) {
             State.nextBlocks[i].colorA = in.next().charAt(0);
             State.nextBlocks[i].colorB = in.next().charAt(0);
-            System.err.println(State.nextBlocks[i].colorA + " " + State.nextBlocks[i].colorB);
+            //System.err.println(State.nextBlocks[i].colorA + " " + State.nextBlocks[i].colorB);
         }
 
         // reading my grid
-        for (int i = 0; i < 12; i++) {
+        for (int i = 0; i < GRID_HEIGHT; i++) {
             String row = in.next();
             for (int j = 0; j < row.length(); j++) {
-                state.myGrid[i * GRID_WIDTH + j] = row.charAt(j);
+                char ch = row.charAt(j);
+                state.myGrid[i * GRID_WIDTH + j] = ch;
+                if (ch != '.' && state.heights[j] == 0) {
+                    state.heights[j] = GRID_HEIGHT - i;
+                }
             }
-            System.err.println(row);
+            //System.err.println(row);
         }
 
         // reading opponents grid
-        for (int i = 0; i < 12; i++) {
+        for (int i = 0; i < GRID_HEIGHT; i++) {
             String row = in.next();
             for (int j = 0; j < row.length(); j++) {
                 state.opponentsGrid[i * GRID_WIDTH + j] = row.charAt(j);
             }
 
-            System.err.println(row);
+            //System.err.println(row);
         }
 
         return state;
@@ -293,7 +297,6 @@ class Player {
                 if (nextState == null) {
                     continue;
                 }
-                //printGrid(nextState);
                 ActionValuePair child = DFS(nextState, depth + 1, maxDepth);
                 child.column = column;
                 child.rotation = rotation;
@@ -308,7 +311,7 @@ class Player {
     public void mainLoop(Scanner in) {
         while (true) {
             State state = readInput(in);
-            ActionValuePair bestAction = DFS(state, 0, 3);
+            ActionValuePair bestAction = DFS(state, 0, 1);
             System.out.println(bestAction.column + " " + bestAction.rotation);
         }
     }
