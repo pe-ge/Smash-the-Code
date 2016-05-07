@@ -322,9 +322,15 @@ class Player {
         }
         for (int i = 0; i < state.heights.length; i++) {
             System.out.print(state.heights[i]);
+            if (state.heights[i] < 0 || state.heights[i] > State.GRID_HEIGHT) {
+                throw new RuntimeException("HEIGHT IS NOT CORRECT");
+            }
         }
-        System.out.println(state.total);
         System.out.println();
+        System.out.println("Total: " + state.total);
+        if (state.total < 0 || state.total > State.GRID_HEIGHT * State.GRID_WIDTH) {
+            throw new RuntimeException("TOTAL IS NOT CORRECT");
+        }
     }
 
     private ActionValuePair DFS(State state, int depth, int maxDepth) {
@@ -334,7 +340,7 @@ class Player {
                 maxHeight = Math.max(maxHeight, state.heights[i]);
             }
 
-            printGrid(state);
+            if (TESTING) printGrid(state);
             return new ActionValuePair(2 * maxHeight + state.total);
         }
 
