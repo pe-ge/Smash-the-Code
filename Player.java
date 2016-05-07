@@ -226,16 +226,21 @@ class Player {
 
             if (size >= 4) {
                 // delete blocks
+                HashSet<Position> shouldFall = new HashSet<>();
                 for (Position position : group) {
                     state.myGrid[position.row][position.column] = '.';
                     state.heights[position.column]--;
                     state.total--;
+
+                    if (insideGrid(position.row - 1, position.column) &&
+                        state.myGrid[position.row - 1][position.column] != '.' &&
+                        state.myGrid[position.row - 1][position.column] != color) {
+                            shouldFall.add(Position.positions[position.row - 1][position.column]);
+                    }
                 }
 
-                HashMap<Integer, Integer> maxOneBlockInColumn = removeNeighboursInColumn(group);
-
                 // apply gravity
-                HashSet<Position> movedPositions = gravity(state.myGrid, maxOneBlockInColumn);
+                HashSet<Position> movedPositions = gravity(state.myGrid, shouldFall);
 
                 // check whether another deletion is possible within column
                 toCheck.addAll(movedPositions);
@@ -243,22 +248,6 @@ class Player {
         }
 
         return state;
-    }
-
-    private HashMap<Integer, Integer> removeNeighboursInColumn(HashSet<Position> positions) {
-        HashMap<Integer, Integer> result = new HashMap<>(); // column -> row
-        for (Position position : positions) {
-            if (result.containsKey(position.column)) {
-                if (result.get(position.column) < position.row) {
-                    result.put(position.column, position.row);
-                }
-
-            } else {
-                result.put(position.column, position.row);
-            }
-        }
-
-        return result;
     }
 
     private boolean insideGrid(int row, int column) {
@@ -289,23 +278,28 @@ class Player {
         return 1 + left + right + top + bottom;
     }
 
-    private HashSet<Position> gravity(char[][] grid, HashMap<Integer, Integer> positions) {
-        HashSet<Position> moved = new HashSet<Position>();
-        for (Map.Entry<Integer, Integer> position : positions.entrySet()) {
-            int row = position.getValue();
-            int column = position.getKey();
+    private HashSet<Position> gravity(char[][] grid, HashSet<Position> positions) {
+        HashSet<Position> moved = new HashSet<>();
+        for (Position position : positions) {
+            int row = position.row;
+            int column = position.column;
 
-            boolean found = false;
-            for (int r = row - 1; r >= 0; r--) {
+            int bottomRow = State.GRID_HEIGHT - 1;
+            for (int r = row + 1; r < State.GRID_HEIGHT; r++) {
                 if (grid[r][column] != '.') {
-                    found = true;
-                    grid[row][column] = grid[r][column];
-                    grid[r][column] = '.';
-                    moved.add(Position.positions[row][column]);
-                    row--;
-                } else if (found) {
+                    bottomRow = r - 1;
                     break;
+                }
+            }
 
+            for (int r = bottomRow; r >= 0; r--) {
+                if (grid[r][column] == '.' && grid[row][column] != '.') {
+                    grid[r][column] = grid[row][column];
+                    grid[row][column] = '.';
+                    moved.add(Position.positions[r][column]);
+                    row--;
+                } else {
+                    break;
                 }
             }
         }
@@ -410,12 +404,8 @@ class Player {
         }
 
         Player P = new Player();
-        P.mainLoop(in);
 
-        if (P.TESTING) {
-            P.testing();
-        } else {
-            P.mainLoop(in);
-        }
+        P.testing();
+        P.mainLoop(in);
     }
 }
