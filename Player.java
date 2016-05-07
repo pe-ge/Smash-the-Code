@@ -229,13 +229,37 @@ class Player {
                     state.heights[blockToDelete.column]--;
                     state.total--;
 
+                    // check whether '0' blocks are around
+                    // above
+                    if (haveColor(state.myGrid, blockToDelete.row - 1, blockToDelete.column, '0')) {
+                        state.myGrid[blockToDelete.row - 1][blockToDelete.column] = '.';
+                        if (blockAboveShouldFall(state.myGrid, blockToDelete.row - 1, blockToDelete.column, (char)0)) {
+                            blocksToFall.add(Position.positions[blockToDelete.row - 2][blockToDelete.column]);
+                        }
+                    }
+                    // below
+                    if (haveColor(state.myGrid, blockToDelete.row + 1, blockToDelete.column, '0')) {
+                        state.myGrid[blockToDelete.row + 1][blockToDelete.column] = '.';
+                    }
+                    // to the left
+                    if (haveColor(state.myGrid, blockToDelete.row, blockToDelete.column - 1, '0')) {
+                        state.myGrid[blockToDelete.row][blockToDelete.column - 1] = '.';
+                        if (blockAboveShouldFall(state.myGrid, blockToDelete.row, blockToDelete.column - 1, (char)0)) {
+                            blocksToFall.add(Position.positions[blockToDelete.row - 1][blockToDelete.column - 1]);
+                        }
+                    }
+                    // to the right
+                    if (haveColor(state.myGrid, blockToDelete.row, blockToDelete.column + 1, '0')) {
+                        state.myGrid[blockToDelete.row][blockToDelete.column + 1] = '.';
+                        if (blockAboveShouldFall(state.myGrid, blockToDelete.row, blockToDelete.column + 1, (char)0)) {
+                            blocksToFall.add(Position.positions[blockToDelete.row - 1][blockToDelete.column + 1]);
+                        }
+                    }
+
                     // check whether block above should fall
                     if (blockAboveShouldFall(state.myGrid, blockToDelete, color)) {
                         blocksToFall.add(Position.positions[blockToDelete.row - 1][blockToDelete.column]);
                     }
-
-                    // check whether '0' blocks are around
-
                 }
 
                 // apply gravity
@@ -247,6 +271,10 @@ class Player {
         }
 
         return state;
+    }
+
+    private boolean blockAboveShouldFall(char[][] grid, int row, int column, char color) {
+        return blockAboveShouldFall(grid, Position.positions[row][column], color);
     }
 
     private boolean blockAboveShouldFall(char[][] grid, Position block, char color) {
