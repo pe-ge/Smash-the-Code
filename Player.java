@@ -84,7 +84,7 @@ class BlockPair {
 
 class Player {
 
-    public static final boolean TESTING = true;
+    public static final boolean TESTING = false;
 
     // maps column number to possible rotations
     public static final HashMap<Integer, ArrayList<Integer>> allActions = new HashMap<Integer, ArrayList<Integer>>();
@@ -255,10 +255,6 @@ class Player {
                 grid[block.row - 1][block.column] != color;
     }
 
-    private boolean insideGrid(int row, int column) {
-        return row >= 0 && column >= 0 && row < State.GRID_HEIGHT && column < State.GRID_WIDTH;
-    }
-
     private int findFreeRow(char[][] grid, int column) {
         for (int row = 0; row < State.GRID_HEIGHT; row++) {
             if (grid[row][column] != '.') {
@@ -268,9 +264,16 @@ class Player {
         return State.GRID_HEIGHT - 1;
     }
 
+    private boolean insideGrid(int row, int column) {
+        return row >= 0 && column >= 0 && row < State.GRID_HEIGHT && column < State.GRID_WIDTH;
+    }
+
+    private boolean haveColor(char[][] grid, int row, int column, char color) {
+        return insideGrid(row, column) && grid[row][column] == color;
+    }
+
     private int countBlocks(char[][] grid, int row, int column, char color, HashSet<Position> visited) {
-        if (!insideGrid(row, column) ||
-            grid[row][column] != color ||
+        if (!haveColor(grid, row, column, color) ||
             visited.contains(Position.positions[row][column])) {
                 return 0;
         }
@@ -410,7 +413,7 @@ class Player {
 
         Player P = new Player();
 
-        P.testing();
+        //P.testing();
         P.mainLoop(in);
     }
 }
