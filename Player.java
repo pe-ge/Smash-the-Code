@@ -226,7 +226,7 @@ class Player {
 
             if (size >= 4) {
                 // delete blocks
-                HashSet<Position> shouldFall = new HashSet<>();
+                HashSet<Position> blocksToFall = new HashSet<>();
                 for (Position position : group) {
                     state.myGrid[position.row][position.column] = '.';
                     state.heights[position.column]--;
@@ -235,12 +235,12 @@ class Player {
                     if (insideGrid(position.row - 1, position.column) &&
                         state.myGrid[position.row - 1][position.column] != '.' &&
                         state.myGrid[position.row - 1][position.column] != color) {
-                            shouldFall.add(Position.positions[position.row - 1][position.column]);
+                            blocksToFall.add(Position.positions[position.row - 1][position.column]);
                     }
                 }
 
                 // apply gravity
-                HashSet<Position> movedPositions = gravity(state.myGrid, shouldFall);
+                HashSet<Position> movedPositions = gravity(state.myGrid, blocksToFall);
 
                 // check whether another deletion is possible within column
                 toCheck.addAll(movedPositions);
@@ -278,11 +278,11 @@ class Player {
         return 1 + left + right + top + bottom;
     }
 
-    private HashSet<Position> gravity(char[][] grid, HashSet<Position> positions) {
+    private HashSet<Position> gravity(char[][] grid, HashSet<Position> blocksToFall) {
         HashSet<Position> moved = new HashSet<>();
-        for (Position position : positions) {
-            int row = position.row;
-            int column = position.column;
+        for (Position block : blocksToFall) {
+            int row = block.row;
+            int column = block.column;
 
             int bottomRow = State.GRID_HEIGHT - 1;
             for (int r = row + 1; r < State.GRID_HEIGHT; r++) {
@@ -293,7 +293,7 @@ class Player {
             }
 
             for (int r = bottomRow; r >= 0; r--) {
-                if (grid[r][column] == '.' && grid[row][column] != '.') {
+                if (grid[r][column] == '.' && row >= 0 && grid[row][column] != '.') {
                     grid[r][column] = grid[row][column];
                     grid[row][column] = '.';
                     moved.add(Position.positions[r][column]);
