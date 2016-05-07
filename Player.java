@@ -6,10 +6,9 @@ class Color {
 }
 
 class ActionValuePair {
-    int column, rotation;
-    double value;
+    int column, rotation, value;
 
-    ActionValuePair(double value) {
+    ActionValuePair(int value) {
         this.value = value;
     }
 }
@@ -23,6 +22,7 @@ class State {
     public char[][] myGrid = new char[GRID_HEIGHT][GRID_WIDTH];
     public int[] heights = new int[GRID_WIDTH];
     public int total;
+    public int deletions;
 
     public char[][] opponentsGrid = new char[GRID_HEIGHT][GRID_WIDTH];
 
@@ -222,6 +222,8 @@ class Player {
             int size = countBlocks(state.myGrid, beingChecked.row, beingChecked.column, color, group);
 
             if (size >= 4) {
+                state.deletions *= 10;
+                state.deletions++;
                 // delete blocks
                 HashSet<Position> blocksToFall = new HashSet<>();
                 for (Position blockToDelete : group) {
@@ -270,6 +272,8 @@ class Player {
             }
         }
 
+        state.deletions += oldState.deletions;
+
         return state;
     }
 
@@ -302,8 +306,8 @@ class Player {
 
     private int countBlocks(char[][] grid, int row, int column, char color, HashSet<Position> visited) {
         if (!haveColor(grid, row, column, color) ||
-            visited.contains(Position.positions[row][column])) {
-                return 0;
+                visited.contains(Position.positions[row][column])) {
+            return 0;
         }
 
         visited.add(Position.positions[row][column]);
@@ -312,6 +316,17 @@ class Player {
         int top = countBlocks(grid, row - 1, column, color, visited);
         int bottom = countBlocks(grid, row + 1, column, color, visited);
         return 1 + left + right + top + bottom;
+    }
+
+    private int countGrid(State state) {
+        HashSet<Position> visited = new HashSet<>();
+        int total = 0;
+        for (int column = 0; column < State.GRID_WIDTH; column++) {
+            int row = State.GRID_HEIGHT - state.heights[column];
+            if (row == State.GRID_HEIGHT || row < 0 || state.myGrid[row][column] == '0' || state.myGrid[row][column] == '.') continue;
+            total += Math.pow(10, countBlocks(state.myGrid, row, column, state.myGrid[row][column], visited));
+        }
+        return total;
     }
 
     private HashSet<Position> gravity(char[][] grid, HashSet<Position> blocksToFall) {
@@ -370,11 +385,22 @@ class Player {
                 maxHeight = Math.max(maxHeight, state.heights[i]);
             }
 
+            int total = 0;
+            if (total < 40) {
+                total = countGrid(state);
+
+            } else {
+                //state.total = 2 * state.total;
+                //state.deletions = 2 * state.deletions;
+                maxHeight = 0;
+            }
+
             if (TESTING) printGrid(state);
-            return new ActionValuePair(2 * maxHeight + state.total);
+            return new ActionValuePair(-2 * maxHeight - state.total + (int)Math.pow(3, state.deletions) + total);
+            //return new ActionValuePair(total);
         }
 
-        ActionValuePair bestActionValuePair = new ActionValuePair(Double.MAX_VALUE);
+        ActionValuePair bestActionValuePair = new ActionValuePair(Integer.MIN_VALUE);
         for (Map.Entry<Integer, ArrayList<Integer>> actions : allActions.entrySet()) {
             int column = actions.getKey();
             ArrayList<Integer> rotations = actions.getValue();
@@ -387,7 +413,7 @@ class Player {
                 ActionValuePair child = DFS(nextState, depth + 1, maxDepth);
                 child.column = column;
                 child.rotation = rotation;
-                if (child.value < bestActionValuePair.value) {
+                if (child.value > bestActionValuePair.value) {
                     bestActionValuePair = child;
                 }
             }
@@ -398,7 +424,12 @@ class Player {
     public void mainLoop(Scanner in) {
         while (true) {
             State state = readInput(in);
-            ActionValuePair bestAction = DFS(state, 0, 3);
+            ActionValuePair bestAction = null;
+            if (state.total < 40) {
+                bestAction = DFS(state, 0, 3);
+            } else {
+                bestAction = DFS(state, 0, 2);
+            }
             System.out.println(bestAction.column + " " + bestAction.rotation);
         }
     }
@@ -445,3 +476,4 @@ class Player {
         P.mainLoop(in);
     }
 }
+
