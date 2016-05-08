@@ -21,8 +21,11 @@ class State {
 
     public char[][] grid = new char[GRID_HEIGHT][GRID_WIDTH];
     public int[] heights = new int[GRID_WIDTH];
-    public int total;
-    public int deletions;
+    public int total = 0;
+
+    // calculating score points
+    public int clearedBlocks = 0;
+    public int chainPower = 0;
 
     static {
         for (int i = 0; i < 8; i++) {
@@ -92,7 +95,7 @@ class BlockPair {
 
 class Player {
 
-    private static final boolean TESTING = true;
+    private static final boolean TESTING = false;
 
     // maps column number to possible rotations
     private static final HashMap<Integer, ArrayList<Integer>> allActions = new HashMap<Integer, ArrayList<Integer>>();
@@ -190,26 +193,28 @@ class Player {
     }
 
     private State nextState(State oldState, int column, int rotation, Color blockColor) {
-        BlockPair block = getBlockPair(oldState, column, rotation);
-        if (block == null) {
+        BlockPair blockPair = getBlockPair(oldState, column, rotation);
+        if (blockPair == null) {
             return null;
         }
 
         State state = new State();
         // place block
         state.grid = deepCopy(oldState.grid);
-        state.grid[block.first.row][block.first.column] = blockColor.colorA;
-        state.grid[block.second.row][block.second.column] = blockColor.colorB;
+        state.grid[blockPair.first.row][blockPair.first.column] = blockColor.colorA;
+        state.grid[blockPair.second.row][blockPair.second.column] = blockColor.colorB;
 
+        // update heights
         state.heights = Arrays.copyOf(oldState.heights, oldState.heights.length);
-        state.heights[block.first.column]++;
-        state.heights[block.second.column]++;
+        state.heights[blockPair.first.column]++;
+        state.heights[blockPair.second.column]++;
 
+        // update total count
         state.total = oldState.total + 2;
 
         HashSet<Block> toCheck = new HashSet<>();
-        toCheck.add(block.first);
-        toCheck.add(block.second);
+        toCheck.add(blockPair.first);
+        toCheck.add(blockPair.second);
         while (!toCheck.isEmpty()) {
             // get position of block to check
             Block beingChecked = toCheck.iterator().next();
@@ -225,14 +230,19 @@ class Player {
             int size = countBlocks(state.grid, beingChecked.row, beingChecked.column, color, group);
 
             if (size >= 4) {
-                state.deletions *= 10;
-                state.deletions++;
+                /* =================== SCORE POINTS =================== */
+                if (!beingChecked.equals(blockPair.first) && !beingChecked.equals(blockPair.second)) {
+                    state.chainPower++;
+                }
+                /* =================== SCORE POINTS =================== */
+
                 // delete blocks
                 HashSet<Block> blocksToFall = new HashSet<>();
                 for (Block blockToDelete : group) {
                     state.grid[blockToDelete.row][blockToDelete.column] = '.';
                     state.heights[blockToDelete.column]--;
                     state.total--;
+                    state.clearedBlocks++;
 
                     // check whether '0' blocks are around
                     // above
@@ -274,8 +284,6 @@ class Player {
                 toCheck.addAll(fallenBlocks);
             }
         }
-
-        state.deletions += oldState.deletions;
 
         return state;
     }
@@ -399,7 +407,7 @@ class Player {
             }
 
             if (TESTING) printGrid(state);
-            return new ActionValuePair(-2 * maxHeight - state.total + (int)Math.pow(3, state.deletions) + total);
+            return new ActionValuePair(-2 * maxHeight - state.total + total);
             //return new ActionValuePair(total);
         }
 
@@ -424,15 +432,39 @@ class Player {
         return bestActionValuePair;
     }
 
-    public void mainLoop(Scanner in) {
-        while (true) {
-            StatePair state = readInput(in);
-            ActionValuePair bestAction = null;
-            if (state.me.total < 40) {
-                bestAction = DFS(state.me, 0, 3);
-            } else {
-                bestAction = DFS(state.me, 0, 2);
+    private ActionValuePair opponentDFS(State state, int depth, int maxDepth) {
+        if (depth == maxDepth) {
+            return new ActionValuePair((int)Math.pow(10, state.chainPower) + state.clearedBlocks);
+        }
+
+        ActionValuePair bestActionValuePair = new ActionValuePair(Integer.MIN_VALUE);
+        for (Map.Entry<Integer, ArrayList<Integer>> actions : allActions.entrySet()) {
+            int column = actions.getKey();
+            ArrayList<Integer> rotations = actions.getValue();
+            Color color = State.nextBlocks[depth];
+            for (Integer rotation : rotations) {
+                State nextState = nextState(state, column, rotation, color);
+                if (nextState == null) {
+                    continue;
+                }
+                ActionValuePair child = opponentDFS(nextState, depth + 1, maxDepth);
+                child.column = column;
+                child.rotation = rotation;
+                if (child.value > bestActionValuePair.value) {
+                    bestActionValuePair = child;
+                }
             }
+        }
+        return bestActionValuePair;
+    }
+
+    public void mainLoop(Scanner in) {
+        // ak opDFS maxDepth=1|2 vrati value > 10, robim DFS maxDepth=1 a idem tiez palit
+        // inac ro
+        while (true) {
+            StatePair statePair = readInput(in);
+            ActionValuePair bestAction = DFS(statePair.me, 0, 2);
+            State state = nextState(statePair.me, bestAction.column, bestAction.rotation, State.nextBlocks[0]);
             System.out.println(bestAction.column + " " + bestAction.rotation);
         }
     }
