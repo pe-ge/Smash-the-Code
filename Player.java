@@ -25,6 +25,7 @@ class State {
 
     // calculating score points
     public int clearedBlocks = 0;
+    public int clearedZeros = 0;
     public int chainPower = 0;
 
     static {
@@ -117,7 +118,7 @@ class Player {
         for (int i = 0; i < 8; i++) {
             State.nextBlocks[i].colorA = in.next().charAt(0);
             State.nextBlocks[i].colorB = in.next().charAt(0);
-            //System.err.println(State.nextBlocks[i].colorA + " " + State.nextBlocks[i].colorB);
+            System.err.println(State.nextBlocks[i].colorA + " " + State.nextBlocks[i].colorB);
         }
         State me = readState(in);
         State opponent = readState(in);
@@ -140,7 +141,7 @@ class Player {
                     }
                 }
             }
-            //System.err.println(row);
+            System.err.println(row);
         }
         return state;
     }
@@ -247,6 +248,7 @@ class Player {
                     // above
                     if (haveColor(state.grid, blockToDelete.row - 1, blockToDelete.column, '0')) {
                         state.clearedBlocks++;
+                        state.clearedZeros++;
                         state.grid[blockToDelete.row - 1][blockToDelete.column] = '.';
                         if (blockAboveShouldFall(state.grid, blockToDelete.row - 1, blockToDelete.column, (char)0)) {
                             blocksToFall.add(Block.blocks[blockToDelete.row - 2][blockToDelete.column]);
@@ -255,11 +257,13 @@ class Player {
                     // below
                     if (haveColor(state.grid, blockToDelete.row + 1, blockToDelete.column, '0')) {
                         state.clearedBlocks++;
+                        state.clearedZeros++;
                         state.grid[blockToDelete.row + 1][blockToDelete.column] = '.';
                     }
                     // to the left
                     if (haveColor(state.grid, blockToDelete.row, blockToDelete.column - 1, '0')) {
                         state.clearedBlocks++;
+                        state.clearedZeros++;
                         state.grid[blockToDelete.row][blockToDelete.column - 1] = '.';
                         if (blockAboveShouldFall(state.grid, blockToDelete.row, blockToDelete.column - 1, (char)0)) {
                             blocksToFall.add(Block.blocks[blockToDelete.row - 1][blockToDelete.column - 1]);
@@ -268,6 +272,7 @@ class Player {
                     // to the right
                     if (haveColor(state.grid, blockToDelete.row, blockToDelete.column + 1, '0')) {
                         state.clearedBlocks++;
+                        state.clearedZeros++;
                         state.grid[blockToDelete.row][blockToDelete.column + 1] = '.';
                         if (blockAboveShouldFall(state.grid, blockToDelete.row, blockToDelete.column + 1, (char)0)) {
                             blocksToFall.add(Block.blocks[blockToDelete.row - 1][blockToDelete.column + 1]);
@@ -372,14 +377,24 @@ class Player {
         return moved;
     }
 
-    private ActionValuePair aggressiveDFS(State state, int depth, int maxDepth) {
+    private ActionValuePair DFS(State state, int depth, int maxDepth) {
         if (depth == maxDepth) {
-
             int maxHeight = 0;
             for (int i = 0; i < state.heights.length; i++) {
                 maxHeight = Math.max(maxHeight, state.heights[i]);
             }
-            return new ActionValuePair((int)Math.pow(10, state.chainPower) + state.clearedBlocks - maxHeight);
+
+            int total = 0;
+            if (total < 40) {
+                total = countGrid(state);
+                return new ActionValuePair( maxHeight / 2 - 10 * state.totalBlocks + (int)Math.pow(10, state.chainPower) + total);
+            } else {
+
+                return new ActionValuePair((int)Math.pow(100, state.chainPower) + total);
+            }
+
+            //return new ActionValuePair(-2 * maxHeight - 10 * state.totalBlocks + (int)Math.pow(100, state.chainPower) + total);
+            //return new ActionValuePair(total);
         }
 
         ActionValuePair bestActionValuePair = new ActionValuePair(Integer.MIN_VALUE);
@@ -392,7 +407,7 @@ class Player {
                 if (nextState == null) {
                     continue;
                 }
-                ActionValuePair child = aggressiveDFS(nextState, depth + 1, maxDepth);
+                ActionValuePair child = DFS(nextState, depth + 1, maxDepth);
                 child.column = column;
                 child.rotation = rotation;
                 if (child.value > bestActionValuePair.value) {
@@ -403,18 +418,9 @@ class Player {
         return bestActionValuePair;
     }
 
-    private ActionValuePair simpleDFS(State state, int depth, int maxDepth) {
+    private ActionValuePair chainDFS(State state, int depth, int maxDepth) {
         if (depth == maxDepth) {
-            if (state.chainPower > 1) {
-                return new ActionValuePair((int)Math.pow(10, state.chainPower) - state.totalBlocks);
-            }
-
-            int maxHeight = 0;
-            for (int i = 0; i < state.heights.length; i++) {
-                maxHeight = Math.max(maxHeight, state.heights[i]);
-            }
-            int countGrid = countGrid(state);
-            return new ActionValuePair(-2 * maxHeight - state.totalBlocks + countGrid);
+            return new ActionValuePair(state.chainPower);
         }
 
         ActionValuePair bestActionValuePair = new ActionValuePair(Integer.MIN_VALUE);
@@ -427,7 +433,7 @@ class Player {
                 if (nextState == null) {
                     continue;
                 }
-                ActionValuePair child = simpleDFS(nextState, depth + 1, maxDepth);
+                ActionValuePair child = chainDFS(nextState, depth + 1, maxDepth);
                 child.column = column;
                 child.rotation = rotation;
                 if (child.value > bestActionValuePair.value) {
@@ -437,22 +443,23 @@ class Player {
         }
         return bestActionValuePair;
     }
-    private ActionValuePair opponentDFS(State state, int depth, int maxDepth) {
+
+    private ActionValuePair clearingZerosDFS(State oldState, State state, int depth, int maxDepth) {
         if (depth == maxDepth) {
-            return new ActionValuePair((int)Math.pow(10, state.chainPower) + state.clearedBlocks);
+            return new ActionValuePair(-state.totalBlocks + oldState.totalBlocks + 10 * (state.clearedZeros - oldState.clearedZeros));
         }
 
         ActionValuePair bestActionValuePair = new ActionValuePair(Integer.MIN_VALUE);
         for (Map.Entry<Integer, ArrayList<Integer>> actions : allActions.entrySet()) {
             int column = actions.getKey();
             ArrayList<Integer> rotations = actions.getValue();
-            Color color = State.nextBlocks[depth];
             for (Integer rotation : rotations) {
+                Color color = State.nextBlocks[depth];
                 State nextState = nextState(state, column, rotation, color);
                 if (nextState == null) {
                     continue;
                 }
-                ActionValuePair child = opponentDFS(nextState, depth + 1, maxDepth);
+                ActionValuePair child = clearingZerosDFS(oldState, nextState, depth + 1, maxDepth);
                 child.column = column;
                 child.rotation = rotation;
                 if (child.value > bestActionValuePair.value) {
@@ -466,42 +473,25 @@ class Player {
     public void mainLoop(Scanner in) {
         while (true) {
             StatePair statePair = readInput(in);
+            ActionValuePair bestAction = chainDFS(statePair.me, 0, 1);
+            if (bestAction.value >= 2) {
 
-            ActionValuePair opFirstAction = opponentDFS(statePair.opponent, 0, 1);
-            ActionValuePair opSecondAction = opponentDFS(statePair.opponent, 0, 2);
-            //System.err.println(opFirstAction.value + " " + opSecondAction.value);
-
-            ActionValuePair myAction;
-            if (opFirstAction.value > 100) {
-                // aggresive strategy
-                myAction = aggressiveDFS(statePair.me, 0, 1);
-                State state = nextState(statePair.me, myAction.column, myAction.rotation, State.nextBlocks[0]);
-                if (state.chainPower == 0) {
-                    System.err.println("Simple instead of Aggressive 1");
-                    myAction = simpleDFS(statePair.me, 0, 1);
-                } else {
-                    System.err.println("Aggresive 1");
-                }
-            } else if (opSecondAction.value > 100) {
-                // aggresive strategy
-                myAction = aggressiveDFS(statePair.me, 0, 2);
-                System.err.println("Aggresive 2");
             } else {
-                // opponent is not attacking
-                if (statePair.me.totalBlocks > 30) {
-                    // aggresive strategy
-                    myAction = aggressiveDFS(statePair.me, 0, 3);
-                    System.err.println("Aggresive 3");
+                bestAction = clearingZerosDFS(statePair.me, statePair.me, 0, 1);
+                if (bestAction.value >= 30) {
+
+                }
+                else if (statePair.me.totalBlocks < 40) {
+                    bestAction = DFS(statePair.me, 0, 3);
                 } else {
-                    // simple strategy
-                    myAction = simpleDFS(statePair.me, 0, 3);
-                    System.err.println("Simple");
+                    bestAction = DFS(statePair.me, 0, 2);
                 }
             }
-            System.out.println(myAction.column + " " + myAction.rotation);
+            State state = nextState(statePair.me, bestAction.column, bestAction.rotation, State.nextBlocks[0]);
+            System.err.println(state.totalBlocks);
+            System.out.println(bestAction.column + " " + bestAction.rotation);
         }
     }
-
     public static void main(String args[]) {
         Scanner in = new Scanner(System.in);
 
