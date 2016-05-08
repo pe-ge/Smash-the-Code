@@ -21,7 +21,7 @@ class State {
 
     public char[][] grid = new char[GRID_HEIGHT][GRID_WIDTH];
     public int[] heights = new int[GRID_WIDTH];
-    public int total = 0;
+    public int totalBlocks = 0;
 
     // calculating score points
     public int clearedBlocks = 0;
@@ -210,7 +210,7 @@ class Player {
         state.heights[blockPair.second.column]++;
 
         // update total count
-        state.total = oldState.total + 2;
+        state.totalBlocks = oldState.totalBlocks + 2;
 
         HashSet<Block> toCheck = new HashSet<>();
         toCheck.add(blockPair.first);
@@ -230,11 +230,10 @@ class Player {
             int size = countBlocks(state.grid, beingChecked.row, beingChecked.column, color, group);
 
             if (size >= 4) {
-                /* =================== SCORE POINTS =================== */
+                // calculate chain power
                 if (!beingChecked.equals(blockPair.first) && !beingChecked.equals(blockPair.second)) {
                     state.chainPower++;
                 }
-                /* =================== SCORE POINTS =================== */
 
                 // delete blocks
                 HashSet<Block> blocksToFall = new HashSet<>();
@@ -247,6 +246,7 @@ class Player {
                     // check whether '0' blocks are around
                     // above
                     if (haveColor(state.grid, blockToDelete.row - 1, blockToDelete.column, '0')) {
+                        state.clearedBlocks++;
                         state.grid[blockToDelete.row - 1][blockToDelete.column] = '.';
                         if (blockAboveShouldFall(state.grid, blockToDelete.row - 1, blockToDelete.column, (char)0)) {
                             blocksToFall.add(Block.blocks[blockToDelete.row - 2][blockToDelete.column]);
@@ -254,10 +254,12 @@ class Player {
                     }
                     // below
                     if (haveColor(state.grid, blockToDelete.row + 1, blockToDelete.column, '0')) {
+                        state.clearedBlocks++;
                         state.grid[blockToDelete.row + 1][blockToDelete.column] = '.';
                     }
                     // to the left
                     if (haveColor(state.grid, blockToDelete.row, blockToDelete.column - 1, '0')) {
+                        state.clearedBlocks++;
                         state.grid[blockToDelete.row][blockToDelete.column - 1] = '.';
                         if (blockAboveShouldFall(state.grid, blockToDelete.row, blockToDelete.column - 1, (char)0)) {
                             blocksToFall.add(Block.blocks[blockToDelete.row - 1][blockToDelete.column - 1]);
@@ -265,6 +267,7 @@ class Player {
                     }
                     // to the right
                     if (haveColor(state.grid, blockToDelete.row, blockToDelete.column + 1, '0')) {
+                        state.clearedBlocks++;
                         state.grid[blockToDelete.row][blockToDelete.column + 1] = '.';
                         if (blockAboveShouldFall(state.grid, blockToDelete.row, blockToDelete.column + 1, (char)0)) {
                             blocksToFall.add(Block.blocks[blockToDelete.row - 1][blockToDelete.column + 1]);
@@ -378,15 +381,8 @@ class Player {
         }
         for (int i = 0; i < state.heights.length; i++) {
             System.out.print(state.heights[i]);
-            if (state.heights[i] < 0 || state.heights[i] > State.GRID_HEIGHT) {
-                throw new RuntimeException("HEIGHT IS NOT CORRECT");
-            }
         }
-        System.out.println();
-        System.out.println("Total: " + state.total);
-        if (state.total < 0 || state.total > State.GRID_HEIGHT * State.GRID_WIDTH) {
-            throw new RuntimeException("TOTAL IS NOT CORRECT");
-        }
+        System.out.println("Total: " + state.totalBlocks);
     }
 
     private ActionValuePair DFS(State state, int depth, int maxDepth) {
@@ -396,19 +392,7 @@ class Player {
                 maxHeight = Math.max(maxHeight, state.heights[i]);
             }
 
-            int total = 0;
-            if (total < 40) {
-                total = countGrid(state);
-
-            } else {
-                //state.total = 2 * state.total;
-                //state.deletions = 2 * state.deletions;
-                maxHeight = 0;
-            }
-
-            if (TESTING) printGrid(state);
-            return new ActionValuePair(-2 * maxHeight - state.total + total);
-            //return new ActionValuePair(total);
+            return new ActionValuePair(state.totalBlocks);
         }
 
         ActionValuePair bestActionValuePair = new ActionValuePair(Integer.MIN_VALUE);
