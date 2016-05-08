@@ -95,8 +95,6 @@ class BlockPair {
 
 class Player {
 
-    private static final boolean TESTING = false;
-
     // maps column number to possible rotations
     private static final HashMap<Integer, ArrayList<Integer>> allActions = new HashMap<Integer, ArrayList<Integer>>();
 
@@ -136,7 +134,7 @@ class Player {
                 state.grid[r][c] = color;
 
                 if (color != '.') {
-                    state.total++;
+                    state.totalBlocks++;
                     if(state.heights[c] == 0) {
                         state.heights[c] = State.GRID_HEIGHT - r;
                     }
@@ -231,7 +229,9 @@ class Player {
 
             if (size >= 4) {
                 // calculate chain power
-                if (!beingChecked.equals(blockPair.first) && !beingChecked.equals(blockPair.second)) {
+                if (beingChecked.equals(blockPair.first) || beingChecked.equals(blockPair.second)) {
+                    state.chainPower = 1;
+                } else {
                     state.chainPower++;
                 }
 
@@ -240,7 +240,7 @@ class Player {
                 for (Block blockToDelete : group) {
                     state.grid[blockToDelete.row][blockToDelete.column] = '.';
                     state.heights[blockToDelete.column]--;
-                    state.total--;
+                    state.totalBlocks--;
                     state.clearedBlocks++;
 
                     // check whether '0' blocks are around
@@ -372,27 +372,10 @@ class Player {
         return moved;
     }
 
-    private void printGrid(State state) {
-        for (int row = 0; row < state.grid.length; row++) {
-            for (int column = 0; column < state.grid[row].length; column++) {
-                System.out.print(state.grid[row][column]);
-            }
-            System.out.println();
-        }
-        for (int i = 0; i < state.heights.length; i++) {
-            System.out.print(state.heights[i]);
-        }
-        System.out.println("Total: " + state.totalBlocks);
-    }
-
-    private ActionValuePair DFS(State state, int depth, int maxDepth) {
+    private ActionValuePair aggressiveDFS(State state, int depth, int maxDepth) {
         if (depth == maxDepth) {
-            int maxHeight = 0;
-            for (int i = 0; i < state.heights.length; i++) {
-                maxHeight = Math.max(maxHeight, state.heights[i]);
-            }
 
-            return new ActionValuePair(state.totalBlocks);
+            return new ActionValuePair((int)Math.pow(10, state.chainPower) + state.clearedBlocks);
         }
 
         ActionValuePair bestActionValuePair = new ActionValuePair(Integer.MIN_VALUE);
@@ -405,7 +388,7 @@ class Player {
                 if (nextState == null) {
                     continue;
                 }
-                ActionValuePair child = DFS(nextState, depth + 1, maxDepth);
+                ActionValuePair child = aggressiveDFS(nextState, depth + 1, maxDepth);
                 child.column = column;
                 child.rotation = rotation;
                 if (child.value > bestActionValuePair.value) {
@@ -416,6 +399,37 @@ class Player {
         return bestActionValuePair;
     }
 
+    private ActionValuePair simpleDFS(State state, int depth, int maxDepth) {
+        if (depth == maxDepth) {
+            int maxHeight = 0;
+            for (int i = 0; i < state.heights.length; i++) {
+                maxHeight = Math.max(maxHeight, state.heights[i]);
+            }
+
+            int countGrid = countGrid(state);
+            return new ActionValuePair(-2 * maxHeight - state.totalBlocks + countGrid);
+        }
+
+        ActionValuePair bestActionValuePair = new ActionValuePair(Integer.MIN_VALUE);
+        for (Map.Entry<Integer, ArrayList<Integer>> actions : allActions.entrySet()) {
+            int column = actions.getKey();
+            ArrayList<Integer> rotations = actions.getValue();
+            for (Integer rotation : rotations) {
+                Color color = State.nextBlocks[depth];
+                State nextState = nextState(state, column, rotation, color);
+                if (nextState == null) {
+                    continue;
+                }
+                ActionValuePair child = simpleDFS(nextState, depth + 1, maxDepth);
+                child.column = column;
+                child.rotation = rotation;
+                if (child.value > bestActionValuePair.value) {
+                    bestActionValuePair = child;
+                }
+            }
+        }
+        return bestActionValuePair;
+    }
     private ActionValuePair opponentDFS(State state, int depth, int maxDepth) {
         if (depth == maxDepth) {
             return new ActionValuePair((int)Math.pow(10, state.chainPower) + state.clearedBlocks);
@@ -443,55 +457,31 @@ class Player {
     }
 
     public void mainLoop(Scanner in) {
-        // ak opDFS maxDepth=1|2 vrati value > 10, robim DFS maxDepth=1 a idem tiez palit
-        // inac ro
         while (true) {
             StatePair statePair = readInput(in);
-            ActionValuePair bestAction = DFS(statePair.me, 0, 2);
-            State state = nextState(statePair.me, bestAction.column, bestAction.rotation, State.nextBlocks[0]);
-            System.out.println(bestAction.column + " " + bestAction.rotation);
-        }
-    }
 
-    public void testing() {
-        Scanner in = new Scanner(System.in);
-        State s = new State();
-        for (int row = 0; row < s.grid.length; row++) {
-            for (int column = 0; column < s.grid[row].length; column++) {
-                s.grid[row][column] = '.';
+            ActionValuePair opFirstAction = opponentDFS(statePair.opponent, 0, 1);
+            ActionValuePair opSecondAction = opponentDFS(statePair.opponent, 0, 2);
+
+            ActionValuePair myAction;
+            if (opFirstAction.value > 10 || opSecondAction.value > 10) {
+                // aggresive strategy
+                myAction = aggressiveDFS(statePair.me, 0, 1);
+                System.err.println("Aggresive");
+            } else {
+                // simple strategy
+                myAction = simpleDFS(statePair.me, 0, 3);
+                System.err.println("Simple");
             }
+            System.out.println(myAction.column + " " + myAction.rotation);
         }
-
-        while (true) {
-            Color nextBlock = new Color();
-            nextBlock.colorA = in.next().charAt(0);
-            nextBlock.colorB = in.next().charAt(0);
-            int column = in.nextInt();
-            int rotation = in.nextInt();
-
-            s = nextState(s, column, rotation, nextBlock);
-
-            printGrid(s);
-
-        }
-
     }
 
     public static void main(String args[]) {
-        Scanner in = null;
-        if (Player.TESTING) {
-            try {
-                in = new Scanner(new File("map1"));
-            } catch (FileNotFoundException e) {
-                e.printStackTrace();
-            }
-        } else {
-            in = new Scanner(System.in);
-        }
+        Scanner in = new Scanner(System.in);
 
         Player P = new Player();
 
-        //P.testing();
         P.mainLoop(in);
     }
 }
