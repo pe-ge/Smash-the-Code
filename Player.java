@@ -375,7 +375,11 @@ class Player {
     private ActionValuePair aggressiveDFS(State state, int depth, int maxDepth) {
         if (depth == maxDepth) {
 
-            return new ActionValuePair((int)Math.pow(10, state.chainPower) + state.clearedBlocks);
+            int maxHeight = 0;
+            for (int i = 0; i < state.heights.length; i++) {
+                maxHeight = Math.max(maxHeight, state.heights[i]);
+            }
+            return new ActionValuePair((int)Math.pow(10, state.chainPower) + state.clearedBlocks - maxHeight);
         }
 
         ActionValuePair bestActionValuePair = new ActionValuePair(Integer.MIN_VALUE);
@@ -401,11 +405,14 @@ class Player {
 
     private ActionValuePair simpleDFS(State state, int depth, int maxDepth) {
         if (depth == maxDepth) {
+            if (state.chainPower > 1) {
+                return new ActionValuePair((int)Math.pow(10, state.chainPower) - state.totalBlocks);
+            }
+
             int maxHeight = 0;
             for (int i = 0; i < state.heights.length; i++) {
                 maxHeight = Math.max(maxHeight, state.heights[i]);
             }
-
             int countGrid = countGrid(state);
             return new ActionValuePair(-2 * maxHeight - state.totalBlocks + countGrid);
         }
@@ -462,16 +469,34 @@ class Player {
 
             ActionValuePair opFirstAction = opponentDFS(statePair.opponent, 0, 1);
             ActionValuePair opSecondAction = opponentDFS(statePair.opponent, 0, 2);
+            //System.err.println(opFirstAction.value + " " + opSecondAction.value);
 
             ActionValuePair myAction;
-            if (opFirstAction.value > 10 || opSecondAction.value > 10) {
+            if (opFirstAction.value > 100) {
                 // aggresive strategy
                 myAction = aggressiveDFS(statePair.me, 0, 1);
-                System.err.println("Aggresive");
+                State state = nextState(statePair.me, myAction.column, myAction.rotation, State.nextBlocks[0]);
+                if (state.chainPower == 0) {
+                    System.err.println("Simple instead of Aggressive 1");
+                    myAction = simpleDFS(statePair.me, 0, 1);
+                } else {
+                    System.err.println("Aggresive 1");
+                }
+            } else if (opSecondAction.value > 100) {
+                // aggresive strategy
+                myAction = aggressiveDFS(statePair.me, 0, 2);
+                System.err.println("Aggresive 2");
             } else {
-                // simple strategy
-                myAction = simpleDFS(statePair.me, 0, 3);
-                System.err.println("Simple");
+                // opponent is not attacking
+                if (statePair.me.totalBlocks > 30) {
+                    // aggresive strategy
+                    myAction = aggressiveDFS(statePair.me, 0, 3);
+                    System.err.println("Aggresive 3");
+                } else {
+                    // simple strategy
+                    myAction = simpleDFS(statePair.me, 0, 3);
+                    System.err.println("Simple");
+                }
             }
             System.out.println(myAction.column + " " + myAction.rotation);
         }
