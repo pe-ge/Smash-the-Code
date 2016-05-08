@@ -19,12 +19,10 @@ class State {
 
     public static Color[] nextBlocks = new Color[8];
 
-    public char[][] myGrid = new char[GRID_HEIGHT][GRID_WIDTH];
+    public char[][] grid = new char[GRID_HEIGHT][GRID_WIDTH];
     public int[] heights = new int[GRID_WIDTH];
     public int total;
     public int deletions;
-
-    public char[][] opponentsGrid = new char[GRID_HEIGHT][GRID_WIDTH];
 
     static {
         for (int i = 0; i < 8; i++) {
@@ -33,21 +31,31 @@ class State {
     }
 }
 
-class Position {
+class StatePair {
+    public State me;
+    public State opponent;
 
-    public static final Position[][] positions;
+    public StatePair(State me, State opponent) {
+        this.me = me;
+        this.opponent = opponent;
+    }
+}
+
+class Block {
+
+    public static final Block[][] blocks;
     public int row, column;
 
     static {
-        positions = new Position[State.GRID_HEIGHT][State.GRID_WIDTH];
-        for (int row = 0; row < positions.length; row++) {
-            for (int column = 0; column < positions[row].length; column++) {
-                positions[row][column] = new Position(row, column);
+        blocks = new Block[State.GRID_HEIGHT][State.GRID_WIDTH];
+        for (int row = 0; row < blocks.length; row++) {
+            for (int column = 0; column < blocks[row].length; column++) {
+                blocks[row][column] = new Block(row, column);
             }
         }
     }
 
-    public Position(int row, int column) {
+    public Block(int row, int column) {
         this.row = row;
         this.column = column;
     }
@@ -57,10 +65,10 @@ class Position {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
 
-        Position position = (Position) o;
+        Block block = (Block) o;
 
-        if (row != position.row) return false;
-        return column == position.column;
+        if (row != block.row) return false;
+        return column == block.column;
 
     }
 
@@ -73,22 +81,23 @@ class Position {
 }
 
 class BlockPair {
-    Position first;
-    Position second;
+    public Block first;
+    public Block second;
 
     public BlockPair(int row1, int column1, int row2, int column2) {
-        this.first = new Position(row1, column1);
-        this.second = new Position(row2, column2);
+        this.first = new Block(row1, column1);
+        this.second = new Block(row2, column2);
     }
 }
 
 class Player {
 
-    public static final boolean TESTING = false;
+    private static final boolean TESTING = true;
 
     // maps column number to possible rotations
-    public static final HashMap<Integer, ArrayList<Integer>> allActions = new HashMap<Integer, ArrayList<Integer>>();
+    private static final HashMap<Integer, ArrayList<Integer>> allActions = new HashMap<Integer, ArrayList<Integer>>();
 
+    // init possible rotations for every column
     static {
         for (int column = 0; column < 6; column++) {
             ArrayList<Integer> rotations = new ArrayList<Integer>();
@@ -102,22 +111,26 @@ class Player {
         }
     }
 
-    public State readInput(Scanner in) {
-        State state = new State();
-
-        // reading next 8 blocks
+    public StatePair readInput(Scanner in) {
+        // reading colors of blocks
         for (int i = 0; i < 8; i++) {
             State.nextBlocks[i].colorA = in.next().charAt(0);
             State.nextBlocks[i].colorB = in.next().charAt(0);
             //System.err.println(State.nextBlocks[i].colorA + " " + State.nextBlocks[i].colorB);
         }
+        State me = readState(in);
+        State opponent = readState(in);
 
-        // reading my grid
+        return new StatePair(me, opponent);
+    }
+
+    private State readState(Scanner in) {
+        State state = new State();
         for (int r = 0; r < State.GRID_HEIGHT; r++) {
             String row = in.next();
             for (int c = 0; c < row.length(); c++) {
                 char color = row.charAt(c);
-                state.myGrid[r][c] = color;
+                state.grid[r][c] = color;
 
                 if (color != '.') {
                     state.total++;
@@ -128,19 +141,9 @@ class Player {
             }
             //System.err.println(row);
         }
-
-        // reading opponents grid
-        for (int r = 0; r < State.GRID_HEIGHT; r++) {
-            String row = in.next();
-            for (int c = 0; c < row.length(); c++) {
-                state.opponentsGrid[r][c] = row.charAt(c);
-            }
-
-            //System.err.println(row);
-        }
-
         return state;
     }
+
     private BlockPair getBlockPair(State state, int column, int rotation) {
         int row1, column1;
         int row2, column2;
@@ -148,23 +151,23 @@ class Player {
 
         switch (rotation) {
             case 0:
-                row1 = findFreeRow(state.myGrid, column1);
+                row1 = findFreeRow(state.grid, column1);
                 column2 = column1 + 1;
-                row2 = findFreeRow(state.myGrid, column2);
+                row2 = findFreeRow(state.grid, column2);
                 break;
             case 1:
-                row1 = findFreeRow(state.myGrid, column1);
+                row1 = findFreeRow(state.grid, column1);
                 column2 = column1;
                 row2 = row1 - 1;
                 break;
             case 2:
-                row1 = findFreeRow(state.myGrid, column1);
+                row1 = findFreeRow(state.grid, column1);
                 column2 = column1 - 1;
-                row2 = findFreeRow(state.myGrid, column2);
+                row2 = findFreeRow(state.grid, column2);
                 break;
             case 3:
                 column2 = column1;
-                row2 = findFreeRow(state.myGrid, column2);
+                row2 = findFreeRow(state.grid, column2);
                 row1 = row2 - 1;
                 break;
             default:
@@ -194,9 +197,9 @@ class Player {
 
         State state = new State();
         // place block
-        state.myGrid = deepCopy(oldState.myGrid);
-        state.myGrid[block.first.row][block.first.column] = blockColor.colorA;
-        state.myGrid[block.second.row][block.second.column] = blockColor.colorB;
+        state.grid = deepCopy(oldState.grid);
+        state.grid[block.first.row][block.first.column] = blockColor.colorA;
+        state.grid[block.second.row][block.second.column] = blockColor.colorB;
 
         state.heights = Arrays.copyOf(oldState.heights, oldState.heights.length);
         state.heights[block.first.column]++;
@@ -204,68 +207,68 @@ class Player {
 
         state.total = oldState.total + 2;
 
-        HashSet<Position> toCheck = new HashSet<>();
+        HashSet<Block> toCheck = new HashSet<>();
         toCheck.add(block.first);
         toCheck.add(block.second);
         while (!toCheck.isEmpty()) {
             // get position of block to check
-            Position beingChecked = toCheck.iterator().next();
+            Block beingChecked = toCheck.iterator().next();
             toCheck.remove(beingChecked);
 
-            char color = state.myGrid[beingChecked.row][beingChecked.column];
+            char color = state.grid[beingChecked.row][beingChecked.column];
             if (color == '.' || color == '0') {
                 continue;
             }
 
             // count group size
-            HashSet<Position> group = new HashSet<>();
-            int size = countBlocks(state.myGrid, beingChecked.row, beingChecked.column, color, group);
+            HashSet<Block> group = new HashSet<>();
+            int size = countBlocks(state.grid, beingChecked.row, beingChecked.column, color, group);
 
             if (size >= 4) {
                 state.deletions *= 10;
                 state.deletions++;
                 // delete blocks
-                HashSet<Position> blocksToFall = new HashSet<>();
-                for (Position blockToDelete : group) {
-                    state.myGrid[blockToDelete.row][blockToDelete.column] = '.';
+                HashSet<Block> blocksToFall = new HashSet<>();
+                for (Block blockToDelete : group) {
+                    state.grid[blockToDelete.row][blockToDelete.column] = '.';
                     state.heights[blockToDelete.column]--;
                     state.total--;
 
                     // check whether '0' blocks are around
                     // above
-                    if (haveColor(state.myGrid, blockToDelete.row - 1, blockToDelete.column, '0')) {
-                        state.myGrid[blockToDelete.row - 1][blockToDelete.column] = '.';
-                        if (blockAboveShouldFall(state.myGrid, blockToDelete.row - 1, blockToDelete.column, (char)0)) {
-                            blocksToFall.add(Position.positions[blockToDelete.row - 2][blockToDelete.column]);
+                    if (haveColor(state.grid, blockToDelete.row - 1, blockToDelete.column, '0')) {
+                        state.grid[blockToDelete.row - 1][blockToDelete.column] = '.';
+                        if (blockAboveShouldFall(state.grid, blockToDelete.row - 1, blockToDelete.column, (char)0)) {
+                            blocksToFall.add(Block.blocks[blockToDelete.row - 2][blockToDelete.column]);
                         }
                     }
                     // below
-                    if (haveColor(state.myGrid, blockToDelete.row + 1, blockToDelete.column, '0')) {
-                        state.myGrid[blockToDelete.row + 1][blockToDelete.column] = '.';
+                    if (haveColor(state.grid, blockToDelete.row + 1, blockToDelete.column, '0')) {
+                        state.grid[blockToDelete.row + 1][blockToDelete.column] = '.';
                     }
                     // to the left
-                    if (haveColor(state.myGrid, blockToDelete.row, blockToDelete.column - 1, '0')) {
-                        state.myGrid[blockToDelete.row][blockToDelete.column - 1] = '.';
-                        if (blockAboveShouldFall(state.myGrid, blockToDelete.row, blockToDelete.column - 1, (char)0)) {
-                            blocksToFall.add(Position.positions[blockToDelete.row - 1][blockToDelete.column - 1]);
+                    if (haveColor(state.grid, blockToDelete.row, blockToDelete.column - 1, '0')) {
+                        state.grid[blockToDelete.row][blockToDelete.column - 1] = '.';
+                        if (blockAboveShouldFall(state.grid, blockToDelete.row, blockToDelete.column - 1, (char)0)) {
+                            blocksToFall.add(Block.blocks[blockToDelete.row - 1][blockToDelete.column - 1]);
                         }
                     }
                     // to the right
-                    if (haveColor(state.myGrid, blockToDelete.row, blockToDelete.column + 1, '0')) {
-                        state.myGrid[blockToDelete.row][blockToDelete.column + 1] = '.';
-                        if (blockAboveShouldFall(state.myGrid, blockToDelete.row, blockToDelete.column + 1, (char)0)) {
-                            blocksToFall.add(Position.positions[blockToDelete.row - 1][blockToDelete.column + 1]);
+                    if (haveColor(state.grid, blockToDelete.row, blockToDelete.column + 1, '0')) {
+                        state.grid[blockToDelete.row][blockToDelete.column + 1] = '.';
+                        if (blockAboveShouldFall(state.grid, blockToDelete.row, blockToDelete.column + 1, (char)0)) {
+                            blocksToFall.add(Block.blocks[blockToDelete.row - 1][blockToDelete.column + 1]);
                         }
                     }
 
                     // check whether block above should fall
-                    if (blockAboveShouldFall(state.myGrid, blockToDelete, color)) {
-                        blocksToFall.add(Position.positions[blockToDelete.row - 1][blockToDelete.column]);
+                    if (blockAboveShouldFall(state.grid, blockToDelete, color)) {
+                        blocksToFall.add(Block.blocks[blockToDelete.row - 1][blockToDelete.column]);
                     }
                 }
 
                 // apply gravity
-                HashSet<Position> fallenBlocks = gravity(state.myGrid, blocksToFall);
+                HashSet<Block> fallenBlocks = gravity(state.grid, blocksToFall);
 
                 // check whether another deletion is possible
                 toCheck.addAll(fallenBlocks);
@@ -278,10 +281,10 @@ class Player {
     }
 
     private boolean blockAboveShouldFall(char[][] grid, int row, int column, char color) {
-        return blockAboveShouldFall(grid, Position.positions[row][column], color);
+        return blockAboveShouldFall(grid, Block.blocks[row][column], color);
     }
 
-    private boolean blockAboveShouldFall(char[][] grid, Position block, char color) {
+    private boolean blockAboveShouldFall(char[][] grid, Block block, char color) {
         return insideGrid(block.row - 1, block.column) &&
                 grid[block.row - 1][block.column] != '.' &&
                 grid[block.row - 1][block.column] != color;
@@ -304,13 +307,13 @@ class Player {
         return insideGrid(row, column) && grid[row][column] == color;
     }
 
-    private int countBlocks(char[][] grid, int row, int column, char color, HashSet<Position> visited) {
+    private int countBlocks(char[][] grid, int row, int column, char color, HashSet<Block> visited) {
         if (!haveColor(grid, row, column, color) ||
-                visited.contains(Position.positions[row][column])) {
+                visited.contains(Block.blocks[row][column])) {
             return 0;
         }
 
-        visited.add(Position.positions[row][column]);
+        visited.add(Block.blocks[row][column]);
         int left = countBlocks(grid, row, column - 1, color, visited);
         int right = countBlocks(grid, row, column + 1, color, visited);
         int top = countBlocks(grid, row - 1, column, color, visited);
@@ -319,19 +322,19 @@ class Player {
     }
 
     private int countGrid(State state) {
-        HashSet<Position> visited = new HashSet<>();
+        HashSet<Block> visited = new HashSet<>();
         int total = 0;
         for (int column = 0; column < State.GRID_WIDTH; column++) {
             int row = State.GRID_HEIGHT - state.heights[column];
-            if (row == State.GRID_HEIGHT || row < 0 || state.myGrid[row][column] == '0' || state.myGrid[row][column] == '.') continue;
-            total += Math.pow(10, countBlocks(state.myGrid, row, column, state.myGrid[row][column], visited));
+            if (row == State.GRID_HEIGHT || row < 0 || state.grid[row][column] == '0' || state.grid[row][column] == '.') continue;
+            total += Math.pow(10, countBlocks(state.grid, row, column, state.grid[row][column], visited));
         }
         return total;
     }
 
-    private HashSet<Position> gravity(char[][] grid, HashSet<Position> blocksToFall) {
-        HashSet<Position> moved = new HashSet<>();
-        for (Position block : blocksToFall) {
+    private HashSet<Block> gravity(char[][] grid, HashSet<Block> blocksToFall) {
+        HashSet<Block> moved = new HashSet<>();
+        for (Block block : blocksToFall) {
             int row = block.row;
             int column = block.column;
 
@@ -347,7 +350,7 @@ class Player {
                 if (grid[r][column] == '.' && row >= 0 && grid[row][column] != '.') {
                     grid[r][column] = grid[row][column];
                     grid[row][column] = '.';
-                    moved.add(Position.positions[r][column]);
+                    moved.add(Block.blocks[r][column]);
                     row--;
                 } else {
                     break;
@@ -359,9 +362,9 @@ class Player {
     }
 
     private void printGrid(State state) {
-        for (int row = 0; row < state.myGrid.length; row++) {
-            for (int column = 0; column < state.myGrid[row].length; column++) {
-                System.out.print(state.myGrid[row][column]);
+        for (int row = 0; row < state.grid.length; row++) {
+            for (int column = 0; column < state.grid[row].length; column++) {
+                System.out.print(state.grid[row][column]);
             }
             System.out.println();
         }
@@ -423,12 +426,12 @@ class Player {
 
     public void mainLoop(Scanner in) {
         while (true) {
-            State state = readInput(in);
+            StatePair state = readInput(in);
             ActionValuePair bestAction = null;
-            if (state.total < 40) {
-                bestAction = DFS(state, 0, 3);
+            if (state.me.total < 40) {
+                bestAction = DFS(state.me, 0, 3);
             } else {
-                bestAction = DFS(state, 0, 2);
+                bestAction = DFS(state.me, 0, 2);
             }
             System.out.println(bestAction.column + " " + bestAction.rotation);
         }
@@ -437,9 +440,9 @@ class Player {
     public void testing() {
         Scanner in = new Scanner(System.in);
         State s = new State();
-        for (int row = 0; row < s.myGrid.length; row++) {
-            for (int column = 0; column < s.myGrid[row].length; column++) {
-                s.myGrid[row][column] = '.';
+        for (int row = 0; row < s.grid.length; row++) {
+            for (int column = 0; column < s.grid[row].length; column++) {
+                s.grid[row][column] = '.';
             }
         }
 
